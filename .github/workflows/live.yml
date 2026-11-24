@@ -1,0 +1,26 @@
+name: Build live TV list
+on:
+  schedule:
+    - cron: "15 */12 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/build-live.mjs
+      - name: Commit and purge CDN
+        run: |
+          git config user.name "cinetor-data-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add live.json live-stats.json
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: refresh live TV list"
+          git push
+          curl -s "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/live.json" > /dev/null || true
